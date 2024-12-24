@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discover Fascinating Science Topics ☄️ 🌌 🧪 🧬 🔭 🌡️ 📐 🧫 🔬 📊</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+        h1 { text-align: center; margin: 20px 0; }
+        .control-section { display: flex; justify-content: center; margin: 20px 0; gap: 10px; flex-wrap: wrap; }
+        button { padding: 10px 20px; font-size: 14px; border: none; border-radius: 5px; cursor: pointer; background-color: #007BFF; color: white; }
+        button:hover { background-color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f4f4f4; }
+        .loading { text-align: center; margin: 20px; font-size: 18px; }
+        .error { color: red; text-align: center; margin: 20px; }
+        .ascii-tree { font-family: monospace; white-space: pre; margin: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Discover Fascinating Science Topics ☄️ 🌌 🧪 🧬 🔭 🌡️ 📐 🧫 🔬 📊</h1>
+
+    <div class="control-section">
+        <button onclick="fetchTopics('shallow')">Shallow Crawl</button>
+        <button onclick="fetchTopics('deep')">Deep Crawl</button>
+        <button onclick="fetchTopics('balanced')">Balanced Crawl</button>
+        <button onclick="fetchTopics('broad')">Broad Crawl</button>
+        <button onclick="fetchTopics('random')">Random Crawl</button>
+        <button onclick="fetchTopics('recent')">Recent Pages</button>
+        <button onclick="fetchTopics('popular')">Popular Topics</button>
+        <button onclick="fetchTopics('subcategory')">Subcategory Focus</button>
+        <button onclick="fetchTopics('article')">Article Focus</button>
+        <button onclick="fetchTopics('science_only')">Science Only</button>
+    </div>
+
+    <div id="message" class="loading" style="display: none;">Loading topics...</div>
+
+    <table id="topicTable" style="display: none;">
+        <thead>
+            <tr>
+                <th>Wikipedia Topic</th>
+                <th>Image Search</th>
+                <th>YouTube Search</th>
+                <th>Summary</th>
+            </tr>
+        </thead>
+        <tbody id="topicList"></tbody>
+    </table>
+
+    <div class="ascii-tree" id="asciiTree" style="display: none;"></div>
+
+    <script>
+        async function fetchTopics(style) {
+            const message = document.getElementById('message');
+            const topicTable = document.getElementById('topicTable');
+            const topicList = document.getElementById('topicList');
+            const asciiTree = document.getElementById('asciiTree');
+
+            message.style.display = 'block';
+            message.textContent = 'Loading topics...';
+            topicTable.style.display = 'none';
+            topicList.innerHTML = '';
+            asciiTree.style.display = 'none';
+
+            try {
+                const baseUrl = 'https://en.wikipedia.org/w/api.php';
+                const maxDepth = style === 'deep' ? 12 : style === 'shallow' ? 2 : Math.floor(Math.random() * (10 - 3) + 3);
+                const subcatBias = style === 'subcategory' ? 0.8 : style === 'article' ? 0.2 : 0.5;
+
+                const fetchCategoryMembers = async (category, type = 'subcat') => {
+                    const response = await fetch(`${baseUrl}?action=query&list=categorymembers&cmtitle=${encodeURIComponent(category)}&cmtype=${type}&cmlimit=50&format=json&origin=*`);
+                    const data = await response.json();
+                    return data.query.categorymembers;
+                };
+
+                let currentCategory = 'Category:Science';
+                let allTopics = [];
+                let treeStructure = `Science\n`;
+
+                for (let depth = 0; depth < maxDepth; depth++) {
+                    const subcategories = await fetchCategoryMembers(currentCategory, 'subcat');
+                    const articles = Math.random() < subcatBias ? [] : await fetchCategoryMembers(currentCategory, 'page');
+
+                    const branch = subcategories.length > 0 ? subcategories : articles;
+                    if (branch.length === 0) break;
+
+                    currentCategory = branch[Math.floor(Math.random() * branch.length)].title;
+                    treeStructure += `  `.repeat(depth + 1) + currentCategory.replace('Category:', '') + `\n`;
+
+                    if (articles.length > 0) {
+                        allTopics = allTopics.concat(articles);
+                        articles.forEach(article => {
+                            treeStructure += `  `.repeat(depth + 2) + article.title + `\n`;
+                        });
+                    }
+                }
+
+                // Shuffle and limit to 30 articles
+                const shuffledArticles = allTopics.sort(() => 0.5 - Math.random()).slice(0, 30);
+
+                for (const article of shuffledArticles) {
+                    const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.title)}`;
+                    const youtubeUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(article.title)}`;
+                    const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(article.title)}`;
+
+                    let summary = 'No summary available';
+                    try {
+                        const summaryResponse = await fetch(`${baseUrl}?action=query&prop=extracts&exintro&explaintext&titles=${encodeURIComponent(article.title)}&exchars=200&format=json&origin=*`);
+                        const summaryData = await summaryResponse.json();
+                        const pages = summaryData.query.pages;
+                        const pageKey = Object.keys(pages)[0];
+                        summary = pages[pageKey].extract || summary;
+                    } catch (error) {
+                        console.error('Error fetching summary:', error);
+                    }
+
+                    const row = document.createElement('tr');
+
+                    const wikiCell = `<td><a href="${wikiUrl}" target="_blank">🖺 Wiki - ${article.title}</a></td>`;
+                    const bingCell = `<td><a href="${bingUrl}" target="_blank">🖼️ Img - ${article.title}</a></td>`;
+                    const youtubeCell = `<td><a href="${youtubeUrl}" target="_blank">📺 YT - ${article.title}</a></td>`;
+                    const summaryCell = `<td>${summary}</td>`;
+
+                    row.innerHTML = wikiCell + bingCell + youtubeCell + summaryCell;
+                    topicList.appendChild(row);
+                }
+
+                message.style.display = 'none';
+                topicTable.style.display = 'table';
+                asciiTree.style.display = 'block';
+                asciiTree.textContent = treeStructure;
+            } catch (error) {
+                message.style.display = 'block';
+                message.textContent = `Error: ${error.message}`;
+                console.error(error);
+            }
+        }
+    </script>
+</body>
+</html>
